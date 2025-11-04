@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encom Printer Cloud Monitor</title>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { AlertTriangle, Printer, Mail, CheckCircle, Clock, Plus, Settings, Download, Server, Globe, Shield, Trash2 } = lucide;
+
+        function EncomPrinterMonitor() {
+            const [clients, setClients] = useState([
+                { id: 1, name: 'Acme Corporation', location: 'New York Office', contactEmail: 'admin@acme.com', createdAt: new Date(Date.now() - 7*24*60*60*1000).toISOString() },
+                { id: 2, name: 'Tech Solutions Inc', location: 'San Francisco HQ', contactEmail: 'it@techsolutions.com', createdAt: new Date(Date.now() - 5*24*60*60*1000).toISOString() }
+            ]);
+            const [agents, setAgents] = useState([
+                { id: 'AGT-001', clientId: 1, clientName: 'Acme Corporation', apiKey: 'sk_demo_acme_2024_x7k9m', status: 'online', version: '1.2.0', lastCheckIn: new Date().toISOString(), installedAt: new Date(Date.now() - 7*24*60*60*1000).toISOString() },
+                { id: 'AGT-002', clientId: 2, clientName: 'Tech Solutions Inc', apiKey: 'sk_demo_tech_2024_p3n8q', status: 'online', version: '1.2.0', lastCheckIn: new Date().toISOString(), installedAt: new Date(Date.now() - 5*24*60*60*1000).toISOString() }
+            ]);
+            const [printers, setPrinters] = useState([
+                { id: 1, clientId: 1, name: 'Reception Printer', ipAddress: '192.168.1.50', model: 'imageRUNNER ADVANCE C5560i', status: 'online', lastSeen: new Date().toISOString(), location: 'Floor 1 - Reception' },
+                { id: 2, clientId: 1, name: 'Executive Floor MFP', ipAddress: '192.168.1.51', model: 'imageRUNNER ADVANCE DX C5870i', status: 'online', lastSeen: new Date().toISOString(), location: 'Floor 5 - Executive Suite' },
+                { id: 3, clientId: 2, name: 'Main Office Printer', ipAddress: '192.168.2.100', model: 'imageRUNNER ADVANCE C3530i', status: 'online', lastSeen: new Date().toISOString(), location: 'Open Office Area' },
+                { id: 4, clientId: 2, name: 'Engineering Department', ipAddress: '192.168.2.101', model: 'imageRUNNER ADVANCE C5560i', status: 'warning', lastSeen: new Date().toISOString(), location: 'Building B - Engineering' }
+            ]);
+            const [tickets, setTickets] = useState([]);
+            const [alerts, setAlerts] = useState([]);
+            const [emailConfig, setEmailConfig] = useState({
+                recipients: 'support@encom-int.com',
+                smtpServer: 'smtp.gmail.com:587',
+                enabled: true
+            });
+            const [showAddClient, setShowAddClient] = useState(false);
+            const [showSettings, setShowSettings] = useState(false);
+            const [showAgentSetup, setShowAgentSetup] = useState(false);
+            const [demoMode, setDemoMode] = useState(true);
+            const [newClient, setNewClient] = useState({
+                name: '',
+                location: '',
+                contactEmail: ''
+            });
+
+            useEffect(() => {
+                const initialAlerts = [
+                    { id: 1, printerId: 2, printerName: 'Executive Floor MFP', clientName: 'Acme Corporation', clientId: 1, type: 'Low Toner', severity: 'warning', message: 'Black toner at 12% capacity', timestamp: new Date(Date.now() - 2*60*60*1000).toISOString() },
+                    { id: 2, printerId: 4, printerName: 'Engineering Department', clientName: 'Tech Solutions Inc', clientId: 2, type: 'Paper Jam', severity: 'critical', message: 'Paper jam detected in tray 2', timestamp: new Date(Date.now() - 1*60*60*1000).toISOString() },
+                    { id: 3, printerId: 1, printerName: 'Reception Printer', clientName: 'Acme Corporation', clientId: 1, type: 'Maintenance Required', severity: 'warning', message: 'Drum unit at 85% capacity', timestamp: new Date(Date.now() - 30*60*1000).toISOString() },
+                ];
+                setAlerts(initialAlerts);
+
+                const initialTickets = [
+                    { id: 'TKT-1001', alertId: 2, clientName: 'Tech Solutions Inc', printerName: 'Engineering Department', title: 'Paper Jam - Engineering Department', description: 'Paper jam detected in tray 2', status: 'open', priority: 'high', createdAt: new Date(Date.now() - 1*60*60*1000).toISOString(), updatedAt: new Date(Date.now() - 1*60*60*1000).toISOString() }
+                ];
+                setTickets(initialTickets);
+            }, []);
+
+            useEffect(() => {
+                if (!demoMode) return;
+
+                const interval = setInterval(() => {
+                    setAgents(prev => prev.map(agent => ({
+                        ...agent,
+                        lastCheckIn: new Date().toISOString(),
+                        status: Math.random() > 0.98 ? 'offline' : 'online'
+                    })));
+
+                    if (Math.random() < 0.15) {
+                        const printer = printers[Math.floor(Math.random() * printers.length)];
+                        const alertTypes = [
+                            { type: 'Low Toner', severity: 'warning', message: 'Cyan toner below 15%' },
+                            { type: 'Paper Jam', severity: 'critical', message: 'Paper jam in tray 2' },
+                            { type: 'Maintenance Required', severity: 'warning', message: 'Drum unit replacement due soon' },
+                            { type: 'Service Error', severity: 'critical', message: 'Error E000054-0001' },
+                            { type: 'Low Paper', severity: 'info', message: 'Tray 1 paper low' },
+                            { type: 'Cover Open', severity: 'warning', message: 'Front cover left open' },
+                            { type: 'Network Issue', severity: 'warning', message: 'High response time detected' }
+                        ];
+                        
+                        const alert = alertTypes[Math.floor(Math.random() * alertTypes.length)];
+                        createAlert(printer, alert);
+                    }
+                }, 12000);
+
+                return () => clearInterval(interval);
+            }, [demoMode, printers]);
+
+            const createAlert = (printer, alert) => {
+                const client = clients.find(c => c.id === printer.clientId);
+                const newAlert = {
+                    id: Date.now() + Math.random(),
+                    printerId: printer.id,
+                    printerName: printer.name,
+                    clientName: client?.name || 'Unknown',
+                    clientId: printer.clientId,
+                    type: alert.type,
+                    severity: alert.severity,
+                    message: alert.message,
+                    timestamp: new Date().toISOString()
+                };
+
+                setAlerts(prev => [newAlert, ...prev].slice(0, 100));
+
+                if (alert.severity === 'critical') {
+                    createTicket(newAlert);
+                }
+            };
+
+            const createTicket = (alert) => {
+                const ticket = {
+                    id: `TKT-${1000 + tickets.length + 1}`,
+                    alertId: alert.id,
+                    clientName: alert.clientName,
+                    printerName: alert.printerName,
+                    title: `${alert.type} - ${alert.printerName}`,
+                    description: alert.message,
+                    status: 'open',
+                    priority: alert.severity === 'critical' ? 'high' : 'medium',
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+
+                setTickets(prev => [ticket, ...prev]);
+            };
+
+            const addClient = () => {
+                if (newClient.name) {
+                    const client = {
+                        id: Date.now(),
+                        ...newClient,
+                        createdAt: new Date().toISOString()
+                    };
+                    setClients(prev => [...prev, client]);
+                    
+                    const agent = {
+                        id: `AGT-${String(agents.length + 1).padStart(3, '0')}`,
+                        clientId: client.id,
+                        clientName: client.name,
+                        apiKey: `sk_${client.name.toLowerCase().replace(/\s/g, '_')}_${Date.now()}`,
+                        status: 'pending',
+                        version: '1.2.0',
+                        lastCheckIn: null,
+                        installedAt: null
+                    };
+                    setAgents(prev => [...prev, agent]);
+                    
+                    setNewClient({ name: '', location: '', contactEmail: '' });
+                    setShowAddClient(false);
+                }
+            };
+
+            const addPrinterToClient = (clientId) => {
+                const clientPrinters = printers.filter(p => p.clientId === clientId);
+                const printer = {
+                    id: Date.now() + Math.random(),
+                    clientId: clientId,
+                    name: `Printer ${clientPrinters.length + 1}`,
+                    ipAddress: `192.168.${Math.floor(clientId)}.${Math.floor(Math.random() * 200 + 10)}`,
+                    model: 'imageRUNNER ADVANCE C5560i',
+                    status: 'online',
+                    location: 'Auto-discovered',
+                    lastSeen: new Date().toISOString()
+                };
+                setPrinters(prev => [...prev, printer]);
+            };
+
+            const activateAgent = (agentId) => {
+                setAgents(prev => prev.map(agent => 
+                    agent.id === agentId 
+                        ? { ...agent, status: 'online', installedAt: new Date().toISOString(), lastCheckIn: new Date().toISOString() }
+                        : agent
+                ));
+            };
+
+            const updateTicketStatus = (ticketId, newStatus) => {
+                setTickets(prev => prev.map(ticket => 
+                    ticket.id === ticketId 
+                        ? { ...ticket, status: newStatus, updatedAt: new Date().toISOString() }
+                        : ticket
+                ));
+            };
+
+            const deleteClient = (clientId) => {
+                if (window.confirm('Delete this client and all associated data?')) {
+                    setClients(prev => prev.filter(c => c.id !== clientId));
+                    setAgents(prev => prev.filter(a => a.clientId !== clientId));
+                    setPrinters(prev => prev.filter(p => p.clientId !== clientId));
+                }
+            };
+
+            const getSeverityColor = (severity) => {
+                switch(severity) {
+                    case 'critical': return 'text-red-600 bg-red-50 border-red-200';
+                    case 'warning': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+                    case 'info': return 'text-blue-600 bg-blue-50 border-blue-200';
+                    default: return 'text-gray-600 bg-gray-50 border-gray-200';
+                }
+            };
+
+            const getStatusColor = (status) => {
+                switch(status) {
+                    case 'open': return 'text-red-600 bg-red-50';
+                    case 'in-progress': return 'text-yellow-600 bg-yellow-50';
+                    case 'resolved': return 'text-green-600 bg-green-50';
+                    default: return 'text-gray-600 bg-gray-50';
+                }
+            };
+
+            const getAgentStatusColor = (status) => {
+                switch(status) {
+                    case 'online': return 'text-green-600 bg-green-50';
+                    case 'offline': return 'text-red-600 bg-red-50';
+                    case 'pending': return 'text-gray-600 bg-gray-50';
+                    default: return 'text-gray-600 bg-gray-50';
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+                    <div className="max-w-7xl mx-auto">
+                        <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border border-gray-200">
+                            <div className="flex items-center justify-between flex-wrap gap-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="bg-cyan-600 p-3 rounded-lg">
+                                        <Globe className="w-8 h-8 text-white" />
+                                    </div>
+                                    <div>
+                                        <h1 className="text-3xl font-bold text-gray-900">Encom Printer Cloud Monitor</h1>
+                                        <p className="text-gray-600">Enterprise multi-site printer monitoring via local agents</p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-3 flex-wrap">
+                                    <div className="flex items-center gap-2 px-4 py-2 bg-cyan-50 border border-cyan-200 rounded-lg">
+                                        <div className={`w-2 h-2 rounded-full ${demoMode ? 'bg-cyan-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                                        <span className="text-sm font-medium text-cyan-700">
+                                            {demoMode ? 'Live Demo Mode' : 'Demo Paused'}
+                                        </span>
+                                    </div>
+                                    <button
+                                        onClick={() => setShowAgentSetup(!showAgentSetup)}
+                                        className="flex items-center gap-2 px-4 py-2 bg-cyan-100 text-cyan-700 rounded-lg hover:bg-cyan-200 transition"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                        Agent Setup
+                                    </button>
+                                    <button
+                                        onClick={() => setShowSettings(!showSettings)}
+                                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+                                    >
+                                        <Settings className="w-4 h-4" />
+                                        Settings
+                                    </button>
+                                    <button
+                                        onClick={() => setShowAddClient(!showAddClient)}
+                                        className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition shadow-md"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        Add Client
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {showAgentSetup && (
+                            <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border border-gray-200">
+                                <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                                    <Globe className="w-5 h-5 text-cyan-600" />
+                                    Client Sites & Agents
+                                </h2>
+                                <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                                    {clients.map(client => {
+                                        const agent = agents.find(a => a.clientId === client.id);
+                                        const clientPrinters = printers.filter(p => p.clientId === client.id);
+                                        return (
+                                            <div key={client.id} className="border-2 border-gray-200 rounded-lg p-4 hover:border-cyan-300 transition">
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <p className="font-semibold text-gray-900 text-lg">{client.name}</p>
+                                                            {agent && (
+                                                                <span className={`px-2 py-1 text-xs rounded-full font-medium ${getAgentStatusColor(agent.status)}`}>
+                                                                    {agent.status}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-sm text-gray-600">{client.location}</p>
+                                                        <p className="text-xs text-gray-500">{client.contactEmail}</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => deleteClient(client.id)}
+                                                        className="text-red-600 hover:bg-red-50 p-2 rounded transition"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                                
+                                                {agent && agent.status === 'pending' && (
+                                                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+                                                        <p className="text-xs text-yellow-800 mb-2 font-medium">Agent pending installation</p>
+                                                        <code className="block bg-white p-2 rounded text-xs mb-2 overflow-x-auto font-mono">
+                                                            {agent.apiKey}
+                                                        </code>
+                                                        <button
+                                                            onClick={() => activateAgent(agent.id)}
+                                                            className="px-3 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700 transition"
+                                                        >
+                                                            Simulate Activation
+                                                        </button>
+                                                    </div>
+                                                )}
+                                                
+                                                {agent && agent.status === 'online' && (
+                                                    <div className="space-y-2">
+                                                        <p className="text-xs text-gray-600">
+                                                            Printers: {clientPrinters.length} | Version: {agent.version}
+                                                        </p>
+                                                        <button
+                                                            onClick={() => addPrinterToClient(client.id)}
+                                                            className="px-3 py-1 bg-cyan-100 text-cyan-700 text-xs rounded hover:bg-cyan-200 transition"
+                                                        >
+                                                            + Add Printer
+                                                        </button>
+                                                    </div>
+                                                )}
+                                                
+                                                {agent && agent.lastCheckIn && (
+                                                    <p className="text-xs text-gray-400 mt-2">
+                                                        Last check-in: {new Date(agent.lastCheckIn).toLocaleString()}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+                                <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                                    <AlertTriangle className="w-5 h-5 text-yellow-600" />
+                                    Recent Alerts
+                                </h2>
+                                <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                                    {alerts.length === 0 ? (
+                                        <div className="text-center py-8 text-gray-500">
+                                            <AlertTriangle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                                            <p className="text-sm">No alerts yet. Monitoring in progress...</p>
+                                        </div>
+                                    ) : (
+                                        alerts.slice(0, 15).map(alert => (
+                                            <div key={alert.id} className={`border-2 rounded-lg p-3 ${getSeverityColor(alert.severity)}`}>
+                                                <div className="flex items-start gap-2">
+                                                    <Shield className={`w-4 h-4 mt-0.5 flex-shrink-0 ${alert.severity === 'critical' ? 'text-red-600' : alert.severity === 'warning' ? 'text-yellow-600' : 'text-blue-600'}`} />
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                            <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${getSeverityColor(alert.severity)}`}>
+                                                                {alert.severity}
+                                                            </span>
+                                                            <span className="text-xs text-gray-600">{alert.clientName}</span>
+                                                        </div>
+                                                        <p className="font-medium text-sm text-gray-900">{alert.type}</p>
+                                                        <p className="text-xs text-gray-600">{alert.printerName}</p>
+                                                        <p className="text-xs text-gray-500 mt-1">{alert.message}</p>
+                                                        <p className="text-xs text-gray-400 mt-1">{new Date(alert.timestamp).toLocaleString()}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+                            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                                <Clock className="w-5 h-5 text-red-600" />
+                                Active Tickets
+                            </h2>
+                            <div className="space-y-3">
+                                {tickets.length === 0 ? (
+                                    <div className="text-center py-8 text-gray-500">
+                                        <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                                        <p className="text-sm">No tickets created yet. Critical alerts will auto-generate tickets.</p>
+                                    </div>
+                                ) : (
+                                    tickets.slice(0, 10).map(ticket => (
+                                        <div key={ticket.id} className="border-2 border-gray-200 rounded-lg p-4 hover:border-cyan-300 transition">
+                                            <div className="flex items-start justify-between mb-2">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                        <p className="font-medium text-sm text-gray-900">{ticket.id}</p>
+                                                        <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${getStatusColor(ticket.status)}`}>
+                                                            {ticket.status}
+                                                        </span>
+                                                        <span className={`px-2 py-0.5 text-xs rounded-full ${ticket.priority === 'high' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                                            {ticket.priority}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-sm text-gray-700 font-medium">{ticket.title}</p>
+                                                    <p className="text-xs text-gray-600 mt-1">Client: {ticket.clientName}</p>
+                                                    <p className="text-xs text-gray-500 mt-1">{ticket.description}</p>
+                                                    <p className="text-xs text-gray-400 mt-1">Created: {new Date(ticket.createdAt).toLocaleString()}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2 mt-3">
+                                                {ticket.status === 'open' && (
+                                                    <button
+                                                        onClick={() => updateTicketStatus(ticket.id, 'in-progress')}
+                                                        className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs rounded hover:bg-yellow-200 transition font-medium"
+                                                    >
+                                                        Start Working
+                                                    </button>
+                                                )}
+                                                {ticket.status === 'in-progress' && (
+                                                    <button
+                                                        onClick={() => updateTicketStatus(ticket.id, 'resolved')}
+                                                        className="px-3 py-1 bg-green-100 text-green-700 text-xs rounded hover:bg-green-200 transition font-medium"
+                                                    >
+                                                        Mark Resolved
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<EncomPrinterMonitor />, document.getElementById('root'));
+    </script>
+</body>
+</html>-2">
+                                    <Server className="w-6 h-6 text-cyan-600" />
+                                    Agent Installation Instructions
+                                </h2>
+                                <div className="bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200 rounded-lg p-5 mb-4">
+                                    <p className="text-sm text-cyan-900 mb-3 font-medium">
+                                        <strong>How It Works:</strong> Each client site runs a lightweight agent that monitors local Canon printers and sends data to this central dashboard.
+                                    </p>
+                                    <div className="grid grid-cols-3 gap-4 text-xs">
+                                        <div className="flex items-start gap-2">
+                                            <Shield className="w-4 h-4 text-cyan-600 flex-shrink-0 mt-0.5" />
+                                            <div>
+                                                <p className="font-semibold text-cyan-900">Secure</p>
+                                                <p className="text-cyan-800">Outbound HTTPS only</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-2">
+                                            <Globe className="w-4 h-4 text-cyan-600 flex-shrink-0 mt-0.5" />
+                                            <div>
+                                                <p className="font-semibold text-cyan-900">Firewall Friendly</p>
+                                                <p className="text-cyan-800">No inbound ports needed</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-2">
+                                            <Printer className="w-4 h-4 text-cyan-600 flex-shrink-0 mt-0.5" />
+                                            <div>
+                                                <p className="font-semibold text-cyan-900">Auto-Discovery</p>
+                                                <p className="text-cyan-800">Finds printers via SNMP</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="grid md:grid-cols-2 gap-6">
+                                    <div className="space-y-4">
+                                        <div>
+                                            <h3 className="font-semibold text-sm mb-2 text-gray-700">Windows Installation</h3>
+                                            <code className="block bg-gray-900 text-green-400 p-3 rounded text-xs overflow-x-auto">
+                                                canon-agent-installer.exe --api-key YOUR_API_KEY
+                                            </code>
+                                        </div>
+                                        <div>
+                                            <h3 className="font-semibold text-sm mb-2 text-gray-700">Linux Installation</h3>
+                                            <code className="block bg-gray-900 text-green-400 p-3 rounded text-xs overflow-x-auto">
+                                                curl -sSL https://monitor.encom-int.com/agent.sh | sudo bash
+                                            </code>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <div>
+                                            <h3 className="font-semibold text-sm mb-2 text-gray-700">System Requirements</h3>
+                                            <ul className="text-sm text-gray-600 space-y-1 bg-gray-50 p-3 rounded">
+                                                <li>• Windows Server 2012+ or Linux Ubuntu 18.04+</li>
+                                                <li>• 512MB RAM, 100MB disk space</li>
+                                                <li>• Network access to Canon printers via SNMP</li>
+                                                <li>• Outbound HTTPS port 443 allowed</li>
+                                            </ul>
+                                        </div>
+                                        <div>
+                                            <h3 className="font-semibold text-sm mb-2 text-gray-700">Supported Canon Models</h3>
+                                            <p className="text-xs text-gray-600 bg-gray-50 p-3 rounded">
+                                                imageRUNNER ADVANCE series, imageCLASS MF series
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {showSettings && (
+                            <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border border-gray-200">
+                                <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                                    <Mail className="w-6 h-6 text-cyan-600" />
+                                    Email Notification Settings
+                                </h2>
+                                <div className="grid md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Email Recipients (comma-separated)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={emailConfig.recipients}
+                                            onChange={(e) => setEmailConfig(prev => ({ ...prev, recipients: e.target.value }))}
+                                            placeholder="support@encom-int.com"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            SMTP Server
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={emailConfig.smtpServer}
+                                            onChange={(e) => setEmailConfig(prev => ({ ...prev, smtpServer: e.target.value }))}
+                                            placeholder="smtp.gmail.com:587"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3 mt-4">
+                                    <input
+                                        type="checkbox"
+                                        checked={emailConfig.enabled}
+                                        onChange={(e) => setEmailConfig(prev => ({ ...prev, enabled: e.target.checked }))}
+                                        className="w-5 h-5 text-cyan-600"
+                                    />
+                                    <label className="text-sm font-medium text-gray-700">
+                                        Enable automatic email notifications for all alerts
+                                    </label>
+                                </div>
+                            </div>
+                        )}
+
+                        {showAddClient && (
+                            <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border border-gray-200">
+                                <h2 className="text-xl font-semibold mb-4">Add New Client Site</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Client Name</label>
+                                        <input
+                                            type="text"
+                                            value={newClient.name}
+                                            onChange={(e) => setNewClient(prev => ({ ...prev, name: e.target.value }))}
+                                            placeholder="Acme Corporation"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                                        <input
+                                            type="text"
+                                            value={newClient.location}
+                                            onChange={(e) => setNewClient(prev => ({ ...prev, location: e.target.value }))}
+                                            placeholder="New York Office"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Contact Email</label>
+                                        <input
+                                            type="text"
+                                            value={newClient.contactEmail}
+                                            onChange={(e) => setNewClient(prev => ({ ...prev, contactEmail: e.target.value }))}
+                                            placeholder="admin@acme.com"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex gap-3 mt-6">
+                                    <button
+                                        onClick={addClient}
+                                        className="px-6 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition shadow-md"
+                                    >
+                                        Add Client & Generate Agent
+                                    </button>
+                                    <button
+                                        onClick={() => setShowAddClient(false)}
+                                        className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                            <div className="bg-white rounded-xl shadow-md p-5 border border-gray-200 hover:shadow-lg transition">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs text-gray-600 uppercase tracking-wide">Client Sites</p>
+                                        <p className="text-3xl font-bold text-gray-900 mt-1">{clients.length}</p>
+                                    </div>
+                                    <Globe className="w-10 h-10 text-cyan-600 opacity-80" />
+                                </div>
+                            </div>
+                            <div className="bg-white rounded-xl shadow-md p-5 border border-gray-200 hover:shadow-lg transition">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs text-gray-600 uppercase tracking-wide">Active Agents</p>
+                                        <p className="text-3xl font-bold text-cyan-600 mt-1">{agents.filter(a => a.status === 'online').length}</p>
+                                    </div>
+                                    <Server className="w-10 h-10 text-cyan-600 opacity-80" />
+                                </div>
+                            </div>
+                            <div className="bg-white rounded-xl shadow-md p-5 border border-gray-200 hover:shadow-lg transition">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs text-gray-600 uppercase tracking-wide">Total Printers</p>
+                                        <p className="text-3xl font-bold text-cyan-600 mt-1">{printers.length}</p>
+                                    </div>
+                                    <Printer className="w-10 h-10 text-cyan-600 opacity-80" />
+                                </div>
+                            </div>
+                            <div className="bg-white rounded-xl shadow-md p-5 border border-gray-200 hover:shadow-lg transition">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs text-gray-600 uppercase tracking-wide">Open Tickets</p>
+                                        <p className="text-3xl font-bold text-red-600 mt-1">{tickets.filter(t => t.status === 'open').length}</p>
+                                    </div>
+                                    <AlertTriangle className="w-10 h-10 text-red-600 opacity-80" />
+                                </div>
+                            </div>
+                            <div className="bg-white rounded-xl shadow-md p-5 border border-gray-200 hover:shadow-lg transition">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs text-gray-600 uppercase tracking-wide">Alerts 24h</p>
+                                        <p className="text-3xl font-bold text-yellow-600 mt-1">{alerts.length}</p>
+                                    </div>
+                                    <Clock className="w-10 h-10 text-yellow-600 opacity-80" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+                                <h2 className="text-xl font-semibold mb-4 flex items-center gap
